@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>チーム分けアプリ - LIFF連携版</title>
   <style>
-    /* 既存のCSSスタイル（省略可能） */
+    /* グローバル設定 */
     * {
       box-sizing: border-box;
     }
@@ -74,6 +74,7 @@
       cursor: pointer;
       transition: background 0.3s ease;
     }
+    /* 主要操作用ボタン */
     .btn-main {
       background: #4CAF50;
       color: #fff;
@@ -81,6 +82,7 @@
     .btn-main:hover {
       background: #45a049;
     }
+    /* サブ操作用ボタン */
     .btn-secondary {
       background: #2196F3;
       color: #fff;
@@ -88,6 +90,7 @@
     .btn-secondary:hover {
       background: #1976D2;
     }
+    /* プレイヤー追加用ボタン */
     .btn-tertiary {
       background: #eee;
       color: #333;
@@ -106,6 +109,7 @@
       border-radius: 4px;
       border-left: 4px solid #4CAF50;
     }
+    /* 条件管理セクション */
     .condition-management {
       margin-top: 20px;
       padding: 15px;
@@ -113,13 +117,14 @@
       border: 1px dashed #ccc;
       border-radius: 4px;
     }
+    /* レスポンシブ対応 */
     @media (max-width: 768px) {
       main {
         flex-direction: column;
       }
     }
   </style>
-  <!-- LIFF SDKの読み込み -->
+  <!-- LIFF SDK の読み込み -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
@@ -166,7 +171,7 @@
       <div id="result" class="result">
         <!-- チーム結果はここに表示 -->
       </div>
-      <!-- 送信ボタンを追加 -->
+      <!-- 送信ボタン -->
       <div class="button-group">
         <button id="sendResultBtn" class="btn-main">結果を送信</button>
       </div>
@@ -184,7 +189,7 @@
   
   <script>
     // LIFFの初期化
-    liff.init({ liffId: 'YOUR_LIFF_ID' })
+    liff.init({ liffId: '2006848149-vz9Jw0dW' })
       .then(() => {
         console.log("LIFF初期化完了");
       })
@@ -204,7 +209,7 @@
     const resultDiv = document.getElementById('result');
     const teamCountSelect = document.getElementById('teamCountSelect');
     
-    // チーム結果を保持するグローバル変数
+    // チーム結果を保持する変数
     let teams = [];
     
     // 新しいプレイヤー入力欄を追加する関数
@@ -225,7 +230,7 @@
     
     addPlayerBtn.addEventListener('click', addPlayerInput);
     
-    // 条件を保存（localStorageに保存）
+    // 条件を保存（localStorage に保存）
     saveBtn.addEventListener('click', () => {
       const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
       const players = [];
@@ -317,7 +322,7 @@
       });
     });
     
-    // チーム分け結果をLINEに送信する処理（LIFFを利用）
+    // チーム分け結果をLINEに送信する処理（LIFF を利用）
     sendResultBtn.addEventListener('click', () => {
       if (teams.length === 0) {
         alert("チーム分けがまだ行われていません。");
