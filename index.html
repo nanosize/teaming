@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>チーム分けアプリ - 新UI（最低人数チェックなし）</title>
+  <style>
+    /* グローバル設定 */
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+      color: #333;
+    }
+    header {
+      background: #4CAF50;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+    }
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 10px;
+      gap: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      flex: 1 1 300px;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    /* 主要操作用ボタン */
+    .btn-main {
+      background: #4CAF50;
+      color: #fff;
+    }
+    .btn-main:hover {
+      background: #45a049;
+    }
+    /* サブ操作用ボタン（条件管理） */
+    .btn-secondary {
+      background: #2196F3;
+      color: #fff;
+    }
+    .btn-secondary:hover {
+      background: #1976D2;
+    }
+    /* プレイヤー追加用：控えめなデザイン */
+    .btn-tertiary {
+      background: #eee;
+      color: #333;
+      border: 1px solid #ccc;
+    }
+    .btn-tertiary:hover {
+      background: #ddd;
+    }
+    .result {
+      margin-top: 10px;
+    }
+    .team {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border-left: 4px solid #4CAF50;
+    }
+    /* 条件管理セクション */
+    .condition-management {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f1f1f1;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+    }
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      main {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    チーム分けアプリ
+  </header>
+  <main>
+    <!-- 左カラム：入力パネル -->
+    <div class="card" id="inputPanel">
+      <h2>プレイヤー入力</h2>
+      <div id="playerInputs">
+        <!-- 初期状態：4つの入力欄 -->
+        <div class="input-group"><input type="text" placeholder="プレイヤー1の名前"></div>
+        <div class="input-group"><input type="text" placeholder="プレイヤー2の名前"></div>
+        <div class="input-group"><input type="text" placeholder="プレイヤー3の名前"></div>
+        <div class="input-group"><input type="text" placeholder="プレイヤー4の名前"></div>
+      </div>
+      <div class="button-group">
+        <button id="addPlayerBtn" class="btn-tertiary">プレイヤーを追加</button>
+      </div>
+      <div class="input-group" id="teamCountContainer">
+        <label for="teamCountSelect">チーム数:</label>
+        <select id="teamCountSelect">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="button-group">
+        <button id="splitBtn" class="btn-main">チーム分けする</button>
+        <button id="resetBtn" class="btn-main">リセット</button>
+      </div>
+    </div>
+    
+    <!-- 右カラム：結果パネル -->
+    <div class="card" id="resultPanel">
+      <h2>チーム分け結果</h2>
+      <div id="result" class="result">
+        <!-- チーム結果はここに表示 -->
+      </div>
+    </div>
+    
+    <!-- 下部：条件管理セクション -->
+    <div class="card condition-management" id="conditionPanel">
+      <h2>条件管理</h2>
+      <div class="button-group">
+        <button id="saveBtn" class="btn-secondary">条件を保存</button>
+        <button id="loadBtn" class="btn-secondary">条件をロード</button>
+      </div>
+    </div>
+  </main>
+  
+  <script>
+    const maxPlayers = 10;  // 最大人数
+    const STORAGE_KEY = 'teamSplitConditions';
+    const playerInputsDiv = document.getElementById('playerInputs');
+    const addPlayerBtn = document.getElementById('addPlayerBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const splitBtn = document.getElementById('splitBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const resultDiv = document.getElementById('result');
+    const teamCountSelect = document.getElementById('teamCountSelect');
+    
+    // 新しいプレイヤー入力欄を追加する関数
+    function addPlayerInput() {
+      const currentCount = playerInputsDiv.querySelectorAll('input[type="text"]').length;
+      if (currentCount >= maxPlayers) {
+        alert("最大人数に達しました。");
+        return;
+      }
+      const div = document.createElement('div');
+      div.className = 'input-group';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = `プレイヤー${currentCount + 1}の名前`;
+      div.appendChild(input);
+      playerInputsDiv.appendChild(div);
+    }
+    
+    addPlayerBtn.addEventListener('click', addPlayerInput);
+    
+    // 条件を保存（localStorageに保存）
+    saveBtn.addEventListener('click', () => {
+      const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
+      const players = [];
+      inputs.forEach(input => {
+        players.push(input.value.trim());
+      });
+      const teamCount = teamCountSelect.value;
+      const conditions = { players, teamCount };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(conditions));
+      alert("条件が保存されました。");
+    });
+    
+    // 条件をロードする関数
+    function loadConditions() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const conditions = JSON.parse(saved);
+          if (Array.isArray(conditions.players) && conditions.players.length > 0) {
+            playerInputsDiv.innerHTML = "";
+            conditions.players.forEach((player, index) => {
+              const div = document.createElement('div');
+              div.className = 'input-group';
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.placeholder = `プレイヤー${index + 1}の名前`;
+              input.value = player;
+              div.appendChild(input);
+              playerInputsDiv.appendChild(div);
+            });
+          }
+          if (conditions.teamCount) {
+            teamCountSelect.value = conditions.teamCount;
+          }
+          alert("保存された条件をロードしました。");
+        } catch (e) {
+          console.error("条件の読み込みに失敗しました", e);
+          alert("条件の読み込みに失敗しました。");
+        }
+      } else {
+        alert("保存された条件はありません。");
+      }
+    }
+    
+    loadBtn.addEventListener('click', loadConditions);
+    
+    // 配列をシャッフルする（Fisher-Yatesアルゴリズム）
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+    
+    // チーム分け処理（最低人数のチェックなし）
+    splitBtn.addEventListener('click', () => {
+      const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
+      const names = [];
+      inputs.forEach(input => {
+        const name = input.value.trim();
+        if (name !== '') {
+          names.push(name);
+        }
+      });
+      
+      // プレイヤーが全くいない場合はアラート
+      if (names.length === 0) {
+        alert("プレイヤーが入力されていません。");
+        return;
+      }
+      
+      if (names.length > maxPlayers) {
+        alert("プレイヤーは最大10人までです。");
+        return;
+      }
+      
+      // チーム数に関しては、プレイヤー数より多くても空のチームができる仕様
+      const teamCount = parseInt(teamCountSelect.value, 10);
+      shuffle(names);
+      const teams = Array.from({ length: teamCount }, () => []);
+      names.forEach((name, index) => {
+        teams[index % teamCount].push(name);
+      });
+      
+      // 結果を表示
+      resultDiv.innerHTML = "";
+      teams.forEach((team, i) => {
+        const teamDiv = document.createElement('div');
+        teamDiv.className = 'team';
+        teamDiv.innerHTML = `<strong>チーム${i + 1}:</strong> ${team.join(', ')}`;
+        resultDiv.appendChild(teamDiv);
+      });
+    });
+    
+    // リセット処理：初期状態（4つの入力欄）に戻す
+    resetBtn.addEventListener('click', () => {
+      playerInputsDiv.innerHTML = "";
+      for (let i = 1; i <= 4; i++) {
+        const div = document.createElement('div');
+        div.className = 'input-group';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `プレイヤー${i}の名前`;
+        div.appendChild(input);
+        playerInputsDiv.appendChild(div);
+      }
+      resultDiv.innerHTML = "";
+      teamCountSelect.value = "2";
+    });
+  </script>
+</body>
+</html>
+
