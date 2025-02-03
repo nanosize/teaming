@@ -3,90 +3,367 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LIFF メッセージ送信サンプル</title>
-  <!-- LIFF SDK の読み込み（最新エッジ版） -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <title>チーム分けアプリ - LIFF連携版</title>
   <style>
+    /* グローバル設定 */
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+      color: #333;
     }
-    h1 {
-      color: #4CAF50;
+    header {
+      background: #4CAF50;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
     }
-    input, button {
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 10px;
+      gap: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      flex: 1 1 300px;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 10px;
       font-size: 16px;
-      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
       margin-top: 10px;
     }
     button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    /* 主要操作用ボタン */
+    .btn-main {
+      background: #4CAF50;
+      color: #fff;
+    }
+    .btn-main:hover {
+      background: #45a049;
+    }
+    /* サブ操作用ボタン */
+    .btn-secondary {
+      background: #2196F3;
+      color: #fff;
+    }
+    .btn-secondary:hover {
+      background: #1976D2;
+    }
+    /* プレイヤー追加用ボタン */
+    .btn-tertiary {
+      background: #eee;
+      color: #333;
+      border: 1px solid #ccc;
+    }
+    .btn-tertiary:hover {
+      background: #ddd;
+    }
+    .result {
+      margin-top: 10px;
+    }
+    .team {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border-left: 4px solid #4CAF50;
+    }
+    /* 条件管理セクション */
+    .condition-management {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f1f1f1;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+    }
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      main {
+        flex-direction: column;
+      }
     }
   </style>
+  <!-- LIFF SDK の読み込み -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <h1>LIFF メッセージ送信テスト</h1>
-  <p>※ このサンプルはLINEアプリ内のトークルームから起動してください。</p>
-  <input type="text" id="userMessage" placeholder="送信するメッセージを入力">
-  <br>
-  <button id="sendBtn" disabled>メッセージ送信</button>
-
+  <header>
+    チーム分けアプリ
+  </header>
+  <main>
+    <!-- 左カラム：入力パネル -->
+    <div class="card" id="inputPanel">
+      <h2>プレイヤー入力</h2>
+      <div id="playerInputs">
+        <!-- 初期状態：4つの入力欄 -->
+        <div class="input-group"><input type="text" placeholder="プレイヤー1の名前"></div>
+        <div class="input-group"><input type="text" placeholder="プレイヤー2の名前"></div>
+        <div class="input-group"><input type="text" placeholder="プレイヤー3の名前"></div>
+        <div class="input-group"><input type="text" placeholder="プレイヤー4の名前"></div>
+      </div>
+      <div class="button-group">
+        <button id="addPlayerBtn" class="btn-tertiary">プレイヤーを追加</button>
+      </div>
+      <div class="input-group" id="teamCountContainer">
+        <label for="teamCountSelect">チーム数:</label>
+        <select id="teamCountSelect">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="button-group">
+        <button id="splitBtn" class="btn-main">チーム分けする</button>
+        <button id="resetBtn" class="btn-main">リセット</button>
+      </div>
+    </div>
+    
+    <!-- 右カラム：結果パネル -->
+    <div class="card" id="resultPanel">
+      <h2>チーム分け結果</h2>
+      <div id="result" class="result">
+        <!-- チーム結果はここに表示 -->
+      </div>
+      <!-- 送信ボタン -->
+      <div class="button-group">
+        <button id="sendResultBtn" class="btn-main">結果を送信</button>
+      </div>
+    </div>
+    
+    <!-- 下部：条件管理セクション -->
+    <div class="card condition-management" id="conditionPanel">
+      <h2>条件管理</h2>
+      <div class="button-group">
+        <button id="saveBtn" class="btn-secondary">条件を保存</button>
+        <button id="loadBtn" class="btn-secondary">条件をロード</button>
+      </div>
+    </div>
+  </main>
+  
   <script>
-    // LIFF ID を設定（ここでは「2006848149-vz9Jw0dW」を使用）
-    const LIFF_ID = '2006848149-vz9Jw0dW';
-
-    /**
-     * LIFF を初期化する関数
-     * 初期化完了後、送信ボタンを有効化します。
-     */
-    async function initLiff() {
-      try {
-        console.log("LIFF 初期化を開始します...");
-        // LIFF の初期化（非同期処理）
-        await liff.init({ liffId: LIFF_ID });
-        console.log("LIFF 初期化完了");
-        window.alert("LIFF の初期化に成功しました");
-        // 初期化が完了したら、送信ボタンを有効化
-        document.getElementById("sendBtn").disabled = false;
-      } catch (error) {
-        console.error("LIFF 初期化エラー:", error);
-        window.alert("LIFF 初期化に失敗しました: " + error);
-      }
-    }
-
-    /**
-     * ユーザーが入力したメッセージを送信する関数
-     */
-    async function sendMessage() {
-      const msgInput = document.getElementById("userMessage");
-      const text = msgInput.value.trim();
-      if (!text) {
-        window.alert("送信するメッセージを入力してください");
+    // LIFFの初期化
+    liff.init({ liffId: '2006848149-vz9Jw0dW' })
+      .then(() => {
+        console.log("LIFF初期化完了");
+      })
+      .catch((err) => {
+        console.error("LIFF初期化エラー", err);
+      });
+    
+    const maxPlayers = 10;  // 最大人数
+    const STORAGE_KEY = 'teamSplitConditions';
+    const playerInputsDiv = document.getElementById('playerInputs');
+    const addPlayerBtn = document.getElementById('addPlayerBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const splitBtn = document.getElementById('splitBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const sendResultBtn = document.getElementById('sendResultBtn');
+    const resultDiv = document.getElementById('result');
+    const teamCountSelect = document.getElementById('teamCountSelect');
+    
+    // チーム結果を保持する変数
+    let teams = [];
+    
+    // 新しいプレイヤー入力欄を追加する関数
+    function addPlayerInput() {
+      const currentCount = playerInputsDiv.querySelectorAll('input[type="text"]').length;
+      if (currentCount >= maxPlayers) {
+        alert("最大人数に達しました。");
         return;
       }
-
-      // LINE の仕様に合わせたメッセージオブジェクトを作成
-      const messageObj = {
-        type: "text",
-        text: text
-      };
-
-      try {
-        // liff.sendMessages() でメッセージを送信
-        await liff.sendMessages([messageObj]);
-        window.alert("メッセージ送信に成功しました！");
-        // 必要に応じて LIFF ウィンドウを閉じる
-        liff.closeWindow();
-      } catch (error) {
-        console.error("メッセージ送信エラー:", error);
-        window.alert("メッセージ送信に失敗しました: " + JSON.stringify(error));
-      }
+      const div = document.createElement('div');
+      div.className = 'input-group';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = `プレイヤー${currentCount + 1}の名前`;
+      div.appendChild(input);
+      playerInputsDiv.appendChild(div);
     }
-
-    // ページロード時に LIFF の初期化を実行
-    window.addEventListener("load", initLiff);
-    // 送信ボタンのクリックイベントに sendMessage() を登録
-    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    
+    addPlayerBtn.addEventListener('click', addPlayerInput);
+    
+    // 条件を保存（localStorage に保存）
+    saveBtn.addEventListener('click', () => {
+      const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
+      const players = [];
+      inputs.forEach(input => {
+        players.push(input.value.trim());
+      });
+      const teamCount = teamCountSelect.value;
+      const conditions = { players, teamCount };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(conditions));
+      alert("条件が保存されました。");
+    });
+    
+    // 条件をロードする処理
+    loadBtn.addEventListener('click', () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const conditions = JSON.parse(saved);
+          if (Array.isArray(conditions.players) && conditions.players.length > 0) {
+            playerInputsDiv.innerHTML = "";
+            conditions.players.forEach((player, index) => {
+              const div = document.createElement('div');
+              div.className = 'input-group';
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.placeholder = `プレイヤー${index + 1}の名前`;
+              input.value = player;
+              div.appendChild(input);
+              playerInputsDiv.appendChild(div);
+            });
+          }
+          if (conditions.teamCount) {
+            teamCountSelect.value = conditions.teamCount;
+          }
+          alert("保存された条件をロードしました。");
+        } catch (e) {
+          console.error("条件の読み込みに失敗しました", e);
+          alert("条件の読み込みに失敗しました。");
+        }
+      } else {
+        alert("保存された条件はありません。");
+      }
+    });
+    
+    // 配列をシャッフルする（Fisher-Yatesアルゴリズム）
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+    
+    // チーム分け処理
+    splitBtn.addEventListener('click', () => {
+      const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
+      const names = [];
+      inputs.forEach(input => {
+        const name = input.value.trim();
+        if (name !== '') {
+          names.push(name);
+        }
+      });
+      
+      if (names.length === 0) {
+        alert("プレイヤーが入力されていません。");
+        return;
+      }
+      
+      if (names.length > maxPlayers) {
+        alert("プレイヤーは最大10人までです。");
+        return;
+      }
+      
+      const teamCount = parseInt(teamCountSelect.value, 10);
+      shuffle(names);
+      teams = Array.from({ length: teamCount }, () => []);
+      names.forEach((name, index) => {
+        teams[index % teamCount].push(name);
+      });
+      
+      // 結果を表示
+      resultDiv.innerHTML = "";
+      teams.forEach((team, i) => {
+        const teamDiv = document.createElement('div');
+        teamDiv.className = 'team';
+        teamDiv.innerHTML = `<strong>チーム${i + 1}:</strong> ${team.join(', ')}`;
+        resultDiv.appendChild(teamDiv);
+      });
+    });
+    
+    // チーム分け結果をLINEに送信する処理（LIFF を利用）
+    sendResultBtn.addEventListener('click', () => {
+      if (teams.length === 0) {
+        alert("チーム分けがまだ行われていません。");
+        return;
+      }
+      
+      // 各チームの結果をテキストメッセージ形式に変換
+      const messages = teams.map((team, index) => {
+        return {
+          type: 'text',
+          text: `チーム${index + 1}: ${team.join(', ')}`
+        };
+      });
+      
+      // LIFF SDK の sendMessages を利用してLINEメッセージを送信
+      liff.sendMessages(messages)
+        .then(() => {
+          alert("LINEメッセージが送信されました。");
+        })
+        .catch((error) => {
+          console.error("送信エラー", error);
+          alert("メッセージ送信に失敗しました。");
+        });
+    });
+    
+    // リセット処理：初期状態（4つの入力欄）に戻す
+    resetBtn.addEventListener('click', () => {
+      playerInputsDiv.innerHTML = "";
+      for (let i = 1; i <= 4; i++) {
+        const div = document.createElement('div');
+        div.className = 'input-group';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `プレイヤー${i}の名前`;
+        div.appendChild(input);
+        playerInputsDiv.appendChild(div);
+      }
+      resultDiv.innerHTML = "";
+      teamCountSelect.value = "2";
+      teams = [];
+    });
   </script>
 </body>
 </html>
