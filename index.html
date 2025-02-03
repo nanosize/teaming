@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>チーム分けアプリ - 新UI（最低人数チェックなし）</title>
+  <title>チーム分けアプリ - LIFF連携版</title>
   <style>
-    /* グローバル設定 */
+    /* 既存のCSSスタイル（省略可能） */
     * {
       box-sizing: border-box;
     }
@@ -74,7 +74,6 @@
       cursor: pointer;
       transition: background 0.3s ease;
     }
-    /* 主要操作用ボタン */
     .btn-main {
       background: #4CAF50;
       color: #fff;
@@ -82,7 +81,6 @@
     .btn-main:hover {
       background: #45a049;
     }
-    /* サブ操作用ボタン（条件管理） */
     .btn-secondary {
       background: #2196F3;
       color: #fff;
@@ -90,7 +88,6 @@
     .btn-secondary:hover {
       background: #1976D2;
     }
-    /* プレイヤー追加用：控えめなデザイン */
     .btn-tertiary {
       background: #eee;
       color: #333;
@@ -109,7 +106,6 @@
       border-radius: 4px;
       border-left: 4px solid #4CAF50;
     }
-    /* 条件管理セクション */
     .condition-management {
       margin-top: 20px;
       padding: 15px;
@@ -117,13 +113,14 @@
       border: 1px dashed #ccc;
       border-radius: 4px;
     }
-    /* レスポンシブ対応 */
     @media (max-width: 768px) {
       main {
         flex-direction: column;
       }
     }
   </style>
+  <!-- LIFF SDKの読み込み -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
   <header>
@@ -169,6 +166,10 @@
       <div id="result" class="result">
         <!-- チーム結果はここに表示 -->
       </div>
+      <!-- 送信ボタンを追加 -->
+      <div class="button-group">
+        <button id="sendResultBtn" class="btn-main">結果を送信</button>
+      </div>
     </div>
     
     <!-- 下部：条件管理セクション -->
@@ -182,6 +183,15 @@
   </main>
   
   <script>
+    // LIFFの初期化
+    liff.init({ liffId: 'YOUR_LIFF_ID' })
+      .then(() => {
+        console.log("LIFF初期化完了");
+      })
+      .catch((err) => {
+        console.error("LIFF初期化エラー", err);
+      });
+    
     const maxPlayers = 10;  // 最大人数
     const STORAGE_KEY = 'teamSplitConditions';
     const playerInputsDiv = document.getElementById('playerInputs');
@@ -190,8 +200,12 @@
     const loadBtn = document.getElementById('loadBtn');
     const splitBtn = document.getElementById('splitBtn');
     const resetBtn = document.getElementById('resetBtn');
+    const sendResultBtn = document.getElementById('sendResultBtn');
     const resultDiv = document.getElementById('result');
     const teamCountSelect = document.getElementById('teamCountSelect');
+    
+    // チーム結果を保持するグローバル変数
+    let teams = [];
     
     // 新しいプレイヤー入力欄を追加する関数
     function addPlayerInput() {
@@ -224,8 +238,8 @@
       alert("条件が保存されました。");
     });
     
-    // 条件をロードする関数
-    function loadConditions() {
+    // 条件をロードする処理
+    loadBtn.addEventListener('click', () => {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try {
@@ -254,9 +268,7 @@
       } else {
         alert("保存された条件はありません。");
       }
-    }
-    
-    loadBtn.addEventListener('click', loadConditions);
+    });
     
     // 配列をシャッフルする（Fisher-Yatesアルゴリズム）
     function shuffle(array) {
@@ -267,7 +279,7 @@
       return array;
     }
     
-    // チーム分け処理（最低人数のチェックなし）
+    // チーム分け処理
     splitBtn.addEventListener('click', () => {
       const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
       const names = [];
@@ -278,7 +290,6 @@
         }
       });
       
-      // プレイヤーが全くいない場合はアラート
       if (names.length === 0) {
         alert("プレイヤーが入力されていません。");
         return;
@@ -289,10 +300,9 @@
         return;
       }
       
-      // チーム数に関しては、プレイヤー数より多くても空のチームができる仕様
       const teamCount = parseInt(teamCountSelect.value, 10);
       shuffle(names);
-      const teams = Array.from({ length: teamCount }, () => []);
+      teams = Array.from({ length: teamCount }, () => []);
       names.forEach((name, index) => {
         teams[index % teamCount].push(name);
       });
@@ -305,6 +315,32 @@
         teamDiv.innerHTML = `<strong>チーム${i + 1}:</strong> ${team.join(', ')}`;
         resultDiv.appendChild(teamDiv);
       });
+    });
+    
+    // チーム分け結果をLINEに送信する処理（LIFFを利用）
+    sendResultBtn.addEventListener('click', () => {
+      if (teams.length === 0) {
+        alert("チーム分けがまだ行われていません。");
+        return;
+      }
+      
+      // 各チームの結果をテキストメッセージ形式に変換
+      const messages = teams.map((team, index) => {
+        return {
+          type: 'text',
+          text: `チーム${index + 1}: ${team.join(', ')}`
+        };
+      });
+      
+      // LIFF SDK の sendMessages を利用してLINEメッセージを送信
+      liff.sendMessages(messages)
+        .then(() => {
+          alert("LINEメッセージが送信されました。");
+        })
+        .catch((error) => {
+          console.error("送信エラー", error);
+          alert("メッセージ送信に失敗しました。");
+        });
     });
     
     // リセット処理：初期状態（4つの入力欄）に戻す
@@ -321,8 +357,8 @@
       }
       resultDiv.innerHTML = "";
       teamCountSelect.value = "2";
+      teams = [];
     });
   </script>
 </body>
 </html>
-
