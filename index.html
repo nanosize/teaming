@@ -171,9 +171,9 @@
       <div id="result" class="result">
         <!-- チーム結果はここに表示 -->
       </div>
-      <!-- 送信ボタン -->
+      <!-- 共有ボタン -->
       <div class="button-group">
-        <button id="sendResultBtn" class="btn-main">結果を送信</button>
+        <button id="sendResultBtn" class="btn-main">結果を共有</button>
       </div>
     </div>
     
@@ -322,30 +322,73 @@
       });
     });
     
-    // チーム分け結果をLINEに送信する処理（LIFF を利用）
+    // クリップボードにテキストをコピーする関数
+    function copyToClipboard(text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            console.log("テキストがクリップボードにコピーされました");
+          })
+          .catch((err) => {
+            console.error("クリップボードへのコピーに失敗しました", err);
+          });
+      } else {
+        // 旧来の方法
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+    }
+    
+    // チーム分け結果を共有する処理
     sendResultBtn.addEventListener('click', () => {
       if (teams.length === 0) {
         alert("チーム分けがまだ行われていません。");
         return;
       }
       
-      // 各チームの結果をテキストメッセージ形式に変換
-      const messages = teams.map((team, index) => {
-        return {
-          type: 'text',
-          text: `チーム${index + 1}: ${team.join(', ')}`
-        };
-      });
+      // 各チームの結果をテキストに変換
+      const messageText = teams
+        .map((team, index) => `チーム${index + 1}: ${team.join(', ')}`)
+        .join('\n');
       
-      // LIFF SDK の sendMessages を利用してLINEメッセージを送信
-      liff.sendMessages(messages)
+      // LIFF内の場合はliff.sendMessagesを使用
+      if (liff.isInClient()) {
+        const messages = teams.map((team, index) => {
+          return {
+            type: 'text',
+            text: `チーム${index + 1}: ${team.join(', ')}`
+          };
+        });
+        liff.sendMessages(messages)
+          .then(() => {
+            alert("LINEメッセージが送信されました。");
+          })
+          .catch((error) => {
+            console.error("送信エラー", error);
+            alert("メッセージ送信に失敗しました。");
+          });
+      }
+      // Webブラウザの場合、Web Share APIが使えるなら共有、使えないならコピー
+      else if (navigator.share) {
+        navigator.share({
+          title: 'チーム分け結果',
+          text: messageText
+        })
         .then(() => {
-          alert("LINEメッセージが送信されました。");
+          alert("共有に成功しました。");
         })
         .catch((error) => {
-          console.error("送信エラー", error);
-          alert("メッセージ送信に失敗しました。");
+          console.error("共有エラー", error);
+          alert("共有に失敗しました。");
         });
+      } else {
+        copyToClipboard(messageText);
+        alert("結果がクリップボードにコピーされました。LINEやSNSに貼り付けてください。");
+      }
     });
     
     // リセット処理：初期状態（4つの入力欄）に戻す
