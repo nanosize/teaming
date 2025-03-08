@@ -132,7 +132,7 @@
     チーム分けアプリ
   </header>
   <main>
-    <!-- 左カラム：入力パネル -->
+    <!-- 入力パネル -->
     <div class="card" id="inputPanel">
       <h2>プレイヤー入力</h2>
       <div id="playerInputs">
@@ -165,19 +165,18 @@
       </div>
     </div>
     
-    <!-- 右カラム：結果パネル -->
+    <!-- 結果パネル -->
     <div class="card" id="resultPanel">
       <h2>チーム分け結果</h2>
       <div id="result" class="result">
-        <!-- チーム結果はここに表示 -->
+        <!-- チーム分け結果をここに表示 -->
       </div>
-      <!-- 共有ボタン -->
       <div class="button-group">
         <button id="sendResultBtn" class="btn-main">結果を共有</button>
       </div>
     </div>
     
-    <!-- 下部：条件管理セクション -->
+    <!-- 条件管理パネル -->
     <div class="card condition-management" id="conditionPanel">
       <h2>条件管理</h2>
       <div class="button-group">
@@ -188,21 +187,19 @@
   </main>
   
   <script>
-    // DOMContentLoaded後に処理を実行
     document.addEventListener('DOMContentLoaded', () => {
-      // LIFF初期化（外部ブラウザでも動作するようredirectUriを指定）
+      // LIFF初期化
       const LIFF_ID = 'YOUR_LIFF_ID'; // ※実際のLIFF IDに置き換えてください
       liff.init({ liffId: LIFF_ID, redirectUri: window.location.href })
         .then(() => {
           console.log("LIFF初期化完了");
-          // PCブラウザの場合、LINEログインしていなくても基本機能は利用可能です。
         })
         .catch((err) => {
           console.error("LIFF初期化エラー", err);
-          // LIFF初期化に失敗しても、基本機能（チーム分け等）は動作するようにする
+          // 初期化エラーでも基本機能は利用できるようにする
         });
       
-      const maxPlayers = 10;  // 最大人数
+      const maxPlayers = 10;  // 最大プレイヤー数
       const STORAGE_KEY = 'teamSplitConditions';
       const playerInputsDiv = document.getElementById('playerInputs');
       const addPlayerBtn = document.getElementById('addPlayerBtn');
@@ -214,7 +211,6 @@
       const resultDiv = document.getElementById('result');
       const teamCountSelect = document.getElementById('teamCountSelect');
       
-      // チーム結果を保持する変数
       let teams = [];
       
       // プレイヤー入力欄の追加
@@ -232,10 +228,9 @@
         div.appendChild(input);
         playerInputsDiv.appendChild(div);
       }
-      
       addPlayerBtn.addEventListener('click', addPlayerInput);
       
-      // 条件の保存（localStorageを使用）
+      // 条件の保存（localStorage利用）
       saveBtn.addEventListener('click', () => {
         const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
         const players = [];
@@ -295,11 +290,8 @@
         const names = [];
         inputs.forEach(input => {
           const name = input.value.trim();
-          if (name !== '') {
-            names.push(name);
-          }
+          if (name !== '') names.push(name);
         });
-        
         if (names.length === 0) {
           alert("プレイヤーが入力されていません。");
           return;
@@ -316,7 +308,6 @@
           teams[index % teamCount].push(name);
         });
         
-        // 結果表示
         resultDiv.innerHTML = "";
         teams.forEach((team, i) => {
           const teamDiv = document.createElement('div');
@@ -330,12 +321,8 @@
       function copyToClipboard(text) {
         if (navigator.clipboard) {
           navigator.clipboard.writeText(text)
-            .then(() => {
-              console.log("テキストがクリップボードにコピーされました");
-            })
-            .catch((err) => {
-              console.error("クリップボードへのコピーに失敗しました", err);
-            });
+            .then(() => { console.log("テキストがクリップボードにコピーされました"); })
+            .catch(err => { console.error("クリップボードへのコピーに失敗しました", err); });
         } else {
           const textarea = document.createElement('textarea');
           textarea.value = text;
@@ -346,7 +333,7 @@
         }
       }
       
-      // チーム分け結果の共有処理
+      // 結果の共有処理
       sendResultBtn.addEventListener('click', () => {
         if (teams.length === 0) {
           alert("チーム分けがまだ行われていません。");
@@ -356,33 +343,27 @@
           .map((team, index) => `チーム${index + 1}: ${team.join(', ')}`)
           .join('\n');
         
-        // LINEアプリ内の場合はLIFFのsendMessagesを使用
+        // LINEクライアント内の場合はLIFFのsendMessagesを使用
         if (liff.isInClient()) {
-          const messages = teams.map((team, index) => {
-            return {
-              type: 'text',
-              text: `チーム${index + 1}: ${team.join(', ')}`
-            };
-          });
+          const messages = teams.map((team, index) => ({
+            type: 'text',
+            text: `チーム${index + 1}: ${team.join(', ')}`
+          }));
           liff.sendMessages(messages)
-            .then(() => {
-              alert("LINEメッセージが送信されました。");
-            })
-            .catch((error) => {
+            .then(() => { alert("LINEメッセージが送信されました。"); })
+            .catch(error => {
               console.error("送信エラー", error);
               alert("メッセージ送信に失敗しました。");
             });
         }
-        // ブラウザの場合、Web Share APIが使えるなら共有
+        // Web Share APIが利用可能ならそちらを利用
         else if (navigator.share) {
           navigator.share({
             title: 'チーム分け結果',
             text: messageText
           })
-          .then(() => {
-            alert("共有に成功しました。");
-          })
-          .catch((error) => {
+          .then(() => { alert("共有に成功しました。"); })
+          .catch(error => {
             console.error("共有エラー", error);
             alert("共有に失敗しました。");
           });
@@ -394,7 +375,7 @@
         }
       });
       
-      // リセット処理：初期状態に戻す
+      // リセット処理：初期状態（4つの入力欄）に戻す
       resetBtn.addEventListener('click', () => {
         playerInputsDiv.innerHTML = "";
         for (let i = 1; i <= 4; i++) {
