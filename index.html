@@ -188,224 +188,228 @@
   </main>
   
   <script>
-    // LIFFの初期化
-    liff.init({ liffId: '2006848149-vz9Jw0dW' })
-      .then(() => {
-        console.log("LIFF初期化完了");
-      })
-      .catch((err) => {
-        console.error("LIFF初期化エラー", err);
-      });
-    
-    const maxPlayers = 10;  // 最大人数
-    const STORAGE_KEY = 'teamSplitConditions';
-    const playerInputsDiv = document.getElementById('playerInputs');
-    const addPlayerBtn = document.getElementById('addPlayerBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const loadBtn = document.getElementById('loadBtn');
-    const splitBtn = document.getElementById('splitBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const sendResultBtn = document.getElementById('sendResultBtn');
-    const resultDiv = document.getElementById('result');
-    const teamCountSelect = document.getElementById('teamCountSelect');
-    
-    // チーム結果を保持する変数
-    let teams = [];
-    
-    // 新しいプレイヤー入力欄を追加する関数
-    function addPlayerInput() {
-      const currentCount = playerInputsDiv.querySelectorAll('input[type="text"]').length;
-      if (currentCount >= maxPlayers) {
-        alert("最大人数に達しました。");
-        return;
-      }
-      const div = document.createElement('div');
-      div.className = 'input-group';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.placeholder = `プレイヤー${currentCount + 1}の名前`;
-      div.appendChild(input);
-      playerInputsDiv.appendChild(div);
-    }
-    
-    addPlayerBtn.addEventListener('click', addPlayerInput);
-    
-    // 条件を保存（localStorage に保存）
-    saveBtn.addEventListener('click', () => {
-      const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
-      const players = [];
-      inputs.forEach(input => {
-        players.push(input.value.trim());
-      });
-      const teamCount = teamCountSelect.value;
-      const conditions = { players, teamCount };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conditions));
-      alert("条件が保存されました。");
-    });
-    
-    // 条件をロードする処理
-    loadBtn.addEventListener('click', () => {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        try {
-          const conditions = JSON.parse(saved);
-          if (Array.isArray(conditions.players) && conditions.players.length > 0) {
-            playerInputsDiv.innerHTML = "";
-            conditions.players.forEach((player, index) => {
-              const div = document.createElement('div');
-              div.className = 'input-group';
-              const input = document.createElement('input');
-              input.type = 'text';
-              input.placeholder = `プレイヤー${index + 1}の名前`;
-              input.value = player;
-              div.appendChild(input);
-              playerInputsDiv.appendChild(div);
-            });
-          }
-          if (conditions.teamCount) {
-            teamCountSelect.value = conditions.teamCount;
-          }
-          alert("保存された条件をロードしました。");
-        } catch (e) {
-          console.error("条件の読み込みに失敗しました", e);
-          alert("条件の読み込みに失敗しました。");
-        }
-      } else {
-        alert("保存された条件はありません。");
-      }
-    });
-    
-    // 配列をシャッフルする（Fisher-Yatesアルゴリズム）
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-    
-    // チーム分け処理
-    splitBtn.addEventListener('click', () => {
-      const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
-      const names = [];
-      inputs.forEach(input => {
-        const name = input.value.trim();
-        if (name !== '') {
-          names.push(name);
-        }
-      });
-      
-      if (names.length === 0) {
-        alert("プレイヤーが入力されていません。");
-        return;
-      }
-      
-      if (names.length > maxPlayers) {
-        alert("プレイヤーは最大10人までです。");
-        return;
-      }
-      
-      const teamCount = parseInt(teamCountSelect.value, 10);
-      shuffle(names);
-      teams = Array.from({ length: teamCount }, () => []);
-      names.forEach((name, index) => {
-        teams[index % teamCount].push(name);
-      });
-      
-      // 結果を表示
-      resultDiv.innerHTML = "";
-      teams.forEach((team, i) => {
-        const teamDiv = document.createElement('div');
-        teamDiv.className = 'team';
-        teamDiv.innerHTML = `<strong>チーム${i + 1}:</strong> ${team.join(', ')}`;
-        resultDiv.appendChild(teamDiv);
-      });
-    });
-    
-    // クリップボードにテキストをコピーする関数
-    function copyToClipboard(text) {
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text)
-          .then(() => {
-            console.log("テキストがクリップボードにコピーされました");
-          })
-          .catch((err) => {
-            console.error("クリップボードへのコピーに失敗しました", err);
-          });
-      } else {
-        // 旧来の方法
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-    }
-    
-    // チーム分け結果を共有する処理
-    sendResultBtn.addEventListener('click', () => {
-      if (teams.length === 0) {
-        alert("チーム分けがまだ行われていません。");
-        return;
-      }
-      
-      // 各チームの結果をテキストに変換
-      const messageText = teams
-        .map((team, index) => `チーム${index + 1}: ${team.join(', ')}`)
-        .join('\n');
-      
-      // LIFF内の場合はliff.sendMessagesを使用
-      if (liff.isInClient()) {
-        const messages = teams.map((team, index) => {
-          return {
-            type: 'text',
-            text: `チーム${index + 1}: ${team.join(', ')}`
-          };
-        });
-        liff.sendMessages(messages)
-          .then(() => {
-            alert("LINEメッセージが送信されました。");
-          })
-          .catch((error) => {
-            console.error("送信エラー", error);
-            alert("メッセージ送信に失敗しました。");
-          });
-      }
-      // Webブラウザの場合、Web Share APIが使えるなら共有、使えないならコピー
-      else if (navigator.share) {
-        navigator.share({
-          title: 'チーム分け結果',
-          text: messageText
-        })
+    // DOMContentLoaded後に処理を実行
+    document.addEventListener('DOMContentLoaded', () => {
+      // LIFF初期化（外部ブラウザでも動作するようredirectUriを指定）
+      const LIFF_ID = 'YOUR_LIFF_ID'; // ※実際のLIFF IDに置き換えてください
+      liff.init({ liffId: LIFF_ID, redirectUri: window.location.href })
         .then(() => {
-          alert("共有に成功しました。");
+          console.log("LIFF初期化完了");
+          // PCブラウザの場合、LINEログインしていなくても基本機能は利用可能です。
         })
-        .catch((error) => {
-          console.error("共有エラー", error);
-          alert("共有に失敗しました。");
+        .catch((err) => {
+          console.error("LIFF初期化エラー", err);
+          // LIFF初期化に失敗しても、基本機能（チーム分け等）は動作するようにする
         });
-      } else {
-        copyToClipboard(messageText);
-        alert("結果がクリップボードにコピーされました。LINEやSNSに貼り付けてください。");
-      }
-    });
-    
-    // リセット処理：初期状態（4つの入力欄）に戻す
-    resetBtn.addEventListener('click', () => {
-      playerInputsDiv.innerHTML = "";
-      for (let i = 1; i <= 4; i++) {
+      
+      const maxPlayers = 10;  // 最大人数
+      const STORAGE_KEY = 'teamSplitConditions';
+      const playerInputsDiv = document.getElementById('playerInputs');
+      const addPlayerBtn = document.getElementById('addPlayerBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const loadBtn = document.getElementById('loadBtn');
+      const splitBtn = document.getElementById('splitBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const sendResultBtn = document.getElementById('sendResultBtn');
+      const resultDiv = document.getElementById('result');
+      const teamCountSelect = document.getElementById('teamCountSelect');
+      
+      // チーム結果を保持する変数
+      let teams = [];
+      
+      // プレイヤー入力欄の追加
+      function addPlayerInput() {
+        const currentCount = playerInputsDiv.querySelectorAll('input[type="text"]').length;
+        if (currentCount >= maxPlayers) {
+          alert("最大人数に達しました。");
+          return;
+        }
         const div = document.createElement('div');
         div.className = 'input-group';
         const input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = `プレイヤー${i}の名前`;
+        input.placeholder = `プレイヤー${currentCount + 1}の名前`;
         div.appendChild(input);
         playerInputsDiv.appendChild(div);
       }
-      resultDiv.innerHTML = "";
-      teamCountSelect.value = "2";
-      teams = [];
+      
+      addPlayerBtn.addEventListener('click', addPlayerInput);
+      
+      // 条件の保存（localStorageを使用）
+      saveBtn.addEventListener('click', () => {
+        const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
+        const players = [];
+        inputs.forEach(input => {
+          players.push(input.value.trim());
+        });
+        const teamCount = teamCountSelect.value;
+        const conditions = { players, teamCount };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(conditions));
+        alert("条件が保存されました。");
+      });
+      
+      // 条件のロード
+      loadBtn.addEventListener('click', () => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            const conditions = JSON.parse(saved);
+            if (Array.isArray(conditions.players) && conditions.players.length > 0) {
+              playerInputsDiv.innerHTML = "";
+              conditions.players.forEach((player, index) => {
+                const div = document.createElement('div');
+                div.className = 'input-group';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `プレイヤー${index + 1}の名前`;
+                input.value = player;
+                div.appendChild(input);
+                playerInputsDiv.appendChild(div);
+              });
+            }
+            if (conditions.teamCount) {
+              teamCountSelect.value = conditions.teamCount;
+            }
+            alert("保存された条件をロードしました。");
+          } catch (e) {
+            console.error("条件の読み込みに失敗しました", e);
+            alert("条件の読み込みに失敗しました。");
+          }
+        } else {
+          alert("保存された条件はありません。");
+        }
+      });
+      
+      // Fisher-Yatesアルゴリズムによるシャッフル
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+      
+      // チーム分け処理
+      splitBtn.addEventListener('click', () => {
+        const inputs = playerInputsDiv.querySelectorAll('input[type="text"]');
+        const names = [];
+        inputs.forEach(input => {
+          const name = input.value.trim();
+          if (name !== '') {
+            names.push(name);
+          }
+        });
+        
+        if (names.length === 0) {
+          alert("プレイヤーが入力されていません。");
+          return;
+        }
+        if (names.length > maxPlayers) {
+          alert("プレイヤーは最大10人までです。");
+          return;
+        }
+        
+        const teamCount = parseInt(teamCountSelect.value, 10);
+        shuffle(names);
+        teams = Array.from({ length: teamCount }, () => []);
+        names.forEach((name, index) => {
+          teams[index % teamCount].push(name);
+        });
+        
+        // 結果表示
+        resultDiv.innerHTML = "";
+        teams.forEach((team, i) => {
+          const teamDiv = document.createElement('div');
+          teamDiv.className = 'team';
+          teamDiv.innerHTML = `<strong>チーム${i + 1}:</strong> ${team.join(', ')}`;
+          resultDiv.appendChild(teamDiv);
+        });
+      });
+      
+      // クリップボードにテキストをコピーする関数
+      function copyToClipboard(text) {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text)
+            .then(() => {
+              console.log("テキストがクリップボードにコピーされました");
+            })
+            .catch((err) => {
+              console.error("クリップボードへのコピーに失敗しました", err);
+            });
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+      }
+      
+      // チーム分け結果の共有処理
+      sendResultBtn.addEventListener('click', () => {
+        if (teams.length === 0) {
+          alert("チーム分けがまだ行われていません。");
+          return;
+        }
+        const messageText = teams
+          .map((team, index) => `チーム${index + 1}: ${team.join(', ')}`)
+          .join('\n');
+        
+        // LINEアプリ内の場合はLIFFのsendMessagesを使用
+        if (liff.isInClient()) {
+          const messages = teams.map((team, index) => {
+            return {
+              type: 'text',
+              text: `チーム${index + 1}: ${team.join(', ')}`
+            };
+          });
+          liff.sendMessages(messages)
+            .then(() => {
+              alert("LINEメッセージが送信されました。");
+            })
+            .catch((error) => {
+              console.error("送信エラー", error);
+              alert("メッセージ送信に失敗しました。");
+            });
+        }
+        // ブラウザの場合、Web Share APIが使えるなら共有
+        else if (navigator.share) {
+          navigator.share({
+            title: 'チーム分け結果',
+            text: messageText
+          })
+          .then(() => {
+            alert("共有に成功しました。");
+          })
+          .catch((error) => {
+            console.error("共有エラー", error);
+            alert("共有に失敗しました。");
+          });
+        }
+        // どちらも利用できない場合はクリップボードにコピー
+        else {
+          copyToClipboard(messageText);
+          alert("結果がクリップボードにコピーされました。LINEやSNSに貼り付けてください。");
+        }
+      });
+      
+      // リセット処理：初期状態に戻す
+      resetBtn.addEventListener('click', () => {
+        playerInputsDiv.innerHTML = "";
+        for (let i = 1; i <= 4; i++) {
+          const div = document.createElement('div');
+          div.className = 'input-group';
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = `プレイヤー${i}の名前`;
+          div.appendChild(input);
+          playerInputsDiv.appendChild(div);
+        }
+        resultDiv.innerHTML = "";
+        teamCountSelect.value = "2";
+        teams = [];
+      });
     });
   </script>
 </body>
